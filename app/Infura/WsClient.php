@@ -16,6 +16,11 @@ class WsClient
     $this->storage = $storage;
   }
 
+  public function getCallId(): int
+  {
+    return $this->counter;
+  }
+
   public function setClient($client)
   {
     $this->client = $client;
@@ -23,23 +28,22 @@ class WsClient
 
   public function start()
   {
-    $this->client = new \WebSocket\Client($this->url);
-    $this->onOpen();
-    $this->client->setTimeout(3600);
-    while(true)
-    {
-      $message = $this->client->receive();
-      if($this->debug)
-        printf("IN << %s\n\n", $message);
-      $message = json_decode($message);
-      if(is_object($message))
-        $this->onMessage($message);
-      else if($this->debug)
-        printf("failed deocde message: %s\n\n", $data['message']);
-    }
+    $this->client = new W2Wrapper($this);
+    $this->client->run($this->url);
   }
 
-  public function onMessage(Object $message)
+  public function onData(string $data): void
+  {
+    if($this->debug)
+      printf("IN << %s\n\n", json_encode($data));
+    $message = json_decode($data);
+    if(is_object($message))
+      $this->onMessage($message);
+    else if($this->debug)
+      printf("failed deocde message: %s\n\n", $data);
+  }
+
+  public function onMessage(Object $message): void
   {
     if(isset($message->method))
     {
@@ -61,23 +65,26 @@ class WsClient
     }
   }
 
-  public function onOpen()
+  public function onOpen(): void
   {
     $this->send("eth_subscribe", "newHeads");
   }
 
-  public function onResponseEthSubscription($data)
+  public function onResponseEthSubscription(Object $data): void
   {
     $hash = $data->result->hash;
     $this->storage->addBlockHash($hash);
     $this->send("eth_getBlockByHash", $hash, false);
     $this->onNextResponse(function($data) {
-      printf("block!\n");
-      var_dump($data);
+      if(!is_object($data))
+        return;
+      if($this->debug)
+        printf("new block %s, transactions: %d\n", $data->hash, count($data->transactions));
+      $this->storage->addTransactions($data->transactions);
     });
   }
 
-  public function send($method, ...$params)
+  public function send(string $method, ...$params): void
   {            
     $this->counter++;
     $data = [

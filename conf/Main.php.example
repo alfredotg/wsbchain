@@ -1,0 +1,10 @@
+<?php
+
+namespace Conf;
+
+class Main
+{
+  const INFURA_WS = 'wss://mainnet.infura.io/ws/v3/keyyyyyy';
+  const REDIS_CONN = "tcp://127.0.0.1:6379/wsb";
+  const WS_ADDRESS = "127.0.0.1:9502";
+}
