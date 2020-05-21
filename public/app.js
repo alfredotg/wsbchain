@@ -14,11 +14,11 @@ socket.onmessage = function(event) {
   let data = JSON.parse(event.data); 
   const MAX_LIST_SIZE = 10;
   if(data[0] == "tx")
-    app.txs.push(data[1]);
+    app.txs.unshift(data[1]);
   if(data[0] == "block")
-    app.blocks.push(data[1]);
+    app.blocks.unshift(data[1]);
   while(app.blocks.length > MAX_LIST_SIZE)
-    app.blocks.shift();
+    app.blocks.pop();
   while(app.txs.length > MAX_LIST_SIZE)
-    app.txs.shift();
+    app.txs.pop();
 };
