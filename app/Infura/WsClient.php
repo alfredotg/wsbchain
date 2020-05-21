@@ -35,7 +35,7 @@ class WsClient
   public function onData(string $data): void
   {
     if($this->debug)
-      printf("IN << %s\n\n", json_encode($data));
+      printf("IN << %s\n\n", substr(json_encode($data), 0, 100));
     $message = json_decode($data);
     if(is_object($message))
       $this->onMessage($message);

@@ -1,7 +1,6 @@
 <?php
 
-
-\Co\run(function(){
+\Co\run(function() {
   $storage = \App\Application::storage();
   $client = new \App\Infura\WsClient(\Conf\Main::INFURA_WS, $storage);
   $client->debug = true;

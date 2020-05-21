@@ -1,0 +1,24 @@
+version: '3'
+
+services:
+  server:
+    image: alfredotg/wsbchain
+    command: php cmd.php server
+    ports:
+      - 127.0.0.1:8081:80
+    restart: always
+    volumes:
+      - ./composer-conf/:/app/conf
+    depends_on:
+      - redis
+  infura:
+    image: alfredotg/wsbchain
+    command: php cmd.php infura
+    volumes:
+      - ./composer-conf/:/app/conf
+    restart: always
+    depends_on:
+      - redis
+
+  redis:
+    image: redis 

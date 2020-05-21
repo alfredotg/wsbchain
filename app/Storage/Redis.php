@@ -4,7 +4,7 @@ namespace App\Storage;
 
 use Swoole\Coroutine\Redis as Connection;
 
-class Redis implements \App\Infura\Storage
+class Redis implements \App\Infura\Storage, Subscriber
 {
   private $address;
   private $connection;

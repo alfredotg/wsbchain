@@ -2,6 +2,7 @@
 
 namespace App;
 
+use \App\Storage\Subscriber;
 use \App\Storage\Message;
 use \Swoole\WebSocket\Server as WsServer;
 
@@ -12,7 +13,7 @@ class PushServer
 
   private $last_events = [];
 
-  function __construct($storage)
+  function __construct(Subscriber $storage)
   {
     $this->storage = $storage;
   }
