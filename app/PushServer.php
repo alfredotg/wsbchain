@@ -21,7 +21,7 @@ class PushServer
   function bind(WsServer $ws)
   {
     $ws->set([
-      'task_worker_num' => 2,
+      'task_worker_num' => 1,
     ]);
 
     $ws->on('open', function (WsServer $ws, $request) {
