@@ -16,23 +16,20 @@ class Redis implements \App\Infura\Storage
     $this->prefix = parse_url($url, PHP_URL_PATH);
   }
 
+  private function connect(): Connection
+  {
+    $connection = new Connection();  
+    if(!$connection->connect($this->address[0], $this->address[1]))
+      throw new \Exception('Failed connect to redis');  
+    return $connection;
+  }
+
   private function conn(): Connection
   {
     if($this->connection == null)
-    {
-      $this->connection = new Connection();  
-      $this->connection->connect($this->address[0], $this->address[1]);  
-    }
+      $this->connection = $this->connect();  
     return $this->connection;
   }
-
-  //private function co(Callable $func): void
-  //{
-  //  $conn = $this->conn();
-  //  \Co\run(function() use($conn, $func) {
-  //    $func($conn);
-  //  });
-  //}
 
   function getBlockByHash(string $hash) 
   {
@@ -53,11 +50,18 @@ class Redis implements \App\Infura\Storage
     return $data;
   }
 
-  function addBlockHash(string $hash): void
+  function addBlock(object $block): void
   {
+    $data = [
+      "hash" => $block->hash,
+      "nonce" => $block->nonce,
+      "number" => $block->number,
+      "size" => $block->size,
+      "count_transactions" => count($block->transactions),
+    ];
     $conn = $this->conn();
-    $conn->set($this->blockKey($hash), $this->serialize(["hash" => $hash]));
-    $conn->publish($this->blockChanel(), $hash);
+    $conn->set($this->blockKey($block->hash), $this->serialize($data));
+    $conn->publish($this->blockChanel(), $block->hash);
   }
 
   function addTransactions(array $transactions): void
@@ -70,29 +74,25 @@ class Redis implements \App\Infura\Storage
     }
   }
 
-  function subscribe(array $chanels): void
+  function subscribe(array $chanels): Iterable
   {
-    $this->conn()->subscribe($chanels);
-  }
-
-  function recv()
-  {
-    while($msg = $this->conn()->recv())
+    $sub_conn = $this->connect();
+    $sub_conn->subscribe($chanels);
+    while($msg = $sub_conn->recv())
     {
       list($type, $name, $info) = $msg;
       switch($type)
       {
         case 'unsubscribe':
-          return null;
+          break;
         case 'message':
           if($name === $this->blockChanel())
-            return new BlockMessage($info);
+            yield new BlockMessage($this->getBlockByHash($info));
           if($name === $this->txChanel())
-            return new TxMessage($info);
+            yield new TxMessage($this->getTxByHash($info));
       }
     }
-    return null;
-  } 
+  }
 
   private function blockKey(string $hash): string
   {

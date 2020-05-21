@@ -4,7 +4,7 @@ namespace App\Storage;
 
 class TxMessage implements Message
 {
-  function __construct(string $data)
+  function __construct(array $data)
   {
     $this->data = $data;
   }

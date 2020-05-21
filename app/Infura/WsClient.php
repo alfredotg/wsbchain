@@ -73,7 +73,6 @@ class WsClient
   public function onResponseEthSubscription(Object $data): void
   {
     $hash = $data->result->hash;
-    $this->storage->addBlockHash($hash);
     $this->send("eth_getBlockByHash", $hash, false);
     $this->onNextResponse(function($data) {
       if(!is_object($data))
@@ -81,6 +80,7 @@ class WsClient
       if($this->debug)
         printf("new block %s, transactions: %d\n", $data->hash, count($data->transactions));
       $this->storage->addTransactions($data->transactions);
+      $this->storage->addBlock($data);
     });
   }
 

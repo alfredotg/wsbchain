@@ -17,11 +17,10 @@ class PushServer
     $this->storage = $storage;
   }
 
-  function start($bind_address)
+  function bind(WsServer $ws)
   {
-    $ws = new WsServer(parse_url($bind_address, PHP_URL_HOST), parse_url($bind_address, PHP_URL_PORT));
     $ws->set([
-      'task_worker_num' => 1,
+      'task_worker_num' => 2,
     ]);
 
     $ws->on('open', function (WsServer $ws, $request) {
@@ -38,12 +37,11 @@ class PushServer
       $this->onTask($ws, $data);
     });
 
-    $ws->after(100, function() use($ws) {
+    $ws->on('start', function(WsServer $ws) {
       \go(function() use($ws) {
         $this->subscribe($ws);
       });
     });
-    $ws->start();
   }
 
   function onOpen(WsServer $ws, $request)
@@ -57,8 +55,9 @@ class PushServer
     switch($type)
     {
       case self::PUBLISH:
+        $data = json_encode($data);
         $this->last_events[] = $data;
-        if(count($this->last_events) > 10)
+        if(count($this->last_events) > 100)
           array_shift($this->last_events);
         foreach($ws->connections as $fd) {
           if($ws->isEstablished($fd)) {
@@ -76,13 +75,13 @@ class PushServer
 
   private function push(WsServer $ws, $fd, $data)
   {
-    $ws->push($fd, json_encode($data));
+    $ws->push($fd, $data);
   }
 
-  private function subscribe(WsServer $ws)
+  function subscribe(WsServer $ws)
   {
-    $this->storage->subscribe([$this->storage->blockChanel(), $this->storage->txChanel()]);
-    while($message = $this->storage->recv())
+    $chanels = [$this->storage->blockChanel(), $this->storage->txChanel()];
+    foreach($this->storage->subscribe($chanels) as $message)
     {
       if($message instanceof Message)
         $this->sendTask($ws, self::PUBLISH, [$message->getName(), $message->getData()]);
