@@ -12,7 +12,7 @@ use \Swoole\Table;
 class PushServer
 {
   const SUBSCRIBE = 3;
-  const MAX_EVENTS = 300;
+  const MAX_EVENTS = 100;
 
   private $last_events;
 
@@ -20,11 +20,7 @@ class PushServer
   {
     $this->storage = $storage;
     $this->subscriber = $subscriber;
-    $table = new Table(1024);
-    $table->column('id', Table::TYPE_INT);
-    $table->column('data', Table::TYPE_STRING, 1024);
-    $table->create();
-    $this->last_events = $table; 
+    $this->last_events = new LimitedTable(self::MAX_EVENTS);
   }
 
   function bind(WsServer $ws)
@@ -54,8 +50,8 @@ class PushServer
 
   function onOpen(WsServer $ws, $request)
   {
-    foreach($this->last_events as $event)
-      $this->push($ws, $request->fd, $event['data']);
+    foreach($this->last_events->getItems() as $event)
+      $this->push($ws, $request->fd, $event);
   }
 
   function onTask(WsServer $ws, $task)
@@ -77,16 +73,7 @@ class PushServer
   private function addEvent(WsServer $ws, $data)
   {
     $data = json_encode($data);
-    $id = $this->last_events->count();
-    $this->last_events->set($id, ['id' => $id, 'data' => $data]);
-    while($this->last_events->count() > self::MAX_EVENTS)
-    {
-      foreach($this->last_events as $k => $event)
-      {
-        $this->last_events->del($k);
-        break;
-      }
-    }
+    $this->last_events->push($data);
     foreach($ws->connections as $fd) {
       if($ws->isEstablished($fd)) {
         $this->push($ws, $fd, $data);
