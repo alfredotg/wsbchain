@@ -1,9 +1,14 @@
 version: '3'
 
 services:
+  redis:
+    image: redis 
+  amqp:
+    image: rabbitmq
+
   server:
     image: alfredotg/wsbchain:latest
-    command: php cmd.php server
+    command: bash ./wait-for-it.sh amqp:5672 -- php cmd.php server
     ports:
       - 127.0.0.1:8081:80
     restart: always
@@ -11,14 +16,14 @@ services:
       - ./composer-conf/:/app/conf
     depends_on:
       - redis
+      - amqp
+
   infura:
     image: alfredotg/wsbchain:latest
-    command: php cmd.php infura
+    command: bash ./wait-for-it.sh amqp:5672 -- php cmd.php infura
     volumes:
       - ./composer-conf/:/app/conf
     restart: always
     depends_on:
       - redis
-
-  redis:
-    image: redis 
+      - amqp

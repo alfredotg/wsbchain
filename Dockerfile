@@ -10,5 +10,6 @@ COPY ./cmd ./cmd
 COPY ./cmd.php ./cmd.php
 COPY ./app ./app
 COPY ./public ./public
+COPY ./wait-for-it.sh ./wait-for-it.sh
 CMD ["php"]
 

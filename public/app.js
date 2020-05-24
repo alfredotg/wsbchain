@@ -13,9 +13,10 @@ let socket = new WebSocket("ws://" + location.host);
 socket.onmessage = function(event) {
   let data = JSON.parse(event.data); 
   const MAX_LIST_SIZE = 10;
-  if(data[0] == "tx")
+  console.log(data);
+  if(data[0] == "chain.tx.new")
     app.txs.unshift(data[1]);
-  if(data[0] == "block")
+  if(data[0] == "chain.block.new")
     app.blocks.unshift(data[1]);
   while(app.blocks.length > MAX_LIST_SIZE)
     app.blocks.pop();
