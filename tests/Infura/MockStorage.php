@@ -2,7 +2,10 @@
 
 namespace Tests\Infura;
 
-class MockStorage implements \App\Infura\Storage
+use App\Block;
+use App\Tx;
+
+class MockStorage implements \App\Storage\Storage
 {
   public $transactions = array(); 
   public $blocks = array(); 
@@ -12,14 +15,23 @@ class MockStorage implements \App\Infura\Storage
   
   }
 
-  function addTransactions(array $transactions): void
+  function addTransaction(Tx $transaction): void
   {
-    foreach($transactions as $hash)
-      $this->transactions[] = $hash;
+    $this->transactions[] = $transaction;
   }
 
-  function addBlock(object $block): void
+  function addBlock(Block $block): void
   {
     $this->blocks[] = $block;
+  }
+
+  function getTxByHash(string $hash): Tx
+  {
+    return null;
+  }
+
+  function getBlockByHash(string $hash): Block
+  {
+    return null;
   }
 }

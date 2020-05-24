@@ -2,41 +2,30 @@
 
 namespace App\Storage;
 
-use Swoole\Coroutine\Redis as Connection;
+use App\Block;
+use App\Tx;
 
-class Redis implements \App\Infura\Storage, Subscriber
+class Redis implements Storage
 {
-  private $address;
-  private $connection;
+  private $con;
   private $prefix;
 
   function __construct(string $url)
   {
-    $this->address = [parse_url($url, PHP_URL_HOST), parse_url($url, PHP_URL_PORT)];
+    $this->conn = new \Predis\Client([
+      'scheme' => 'tcp',
+      'host'   => parse_url($url, PHP_URL_HOST),
+      'port'   => parse_url($url, PHP_URL_PORT),
+    ]);
     $this->prefix = parse_url($url, PHP_URL_PATH);
   }
 
-  private function connect(): Connection
-  {
-    $connection = new Connection();  
-    if(!$connection->connect($this->address[0], $this->address[1]))
-      throw new \Exception('Failed connect to redis');  
-    return $connection;
-  }
-
-  private function conn(): Connection
-  {
-    if($this->connection == null)
-      $this->connection = $this->connect();  
-    return $this->connection;
-  }
-
-  function getBlockByHash(string $hash) 
+  function getBlockByHash(string $hash): Block 
   {
     return $this->getData($this->blockKey($hash));
   }
 
-  function getTxByHash(string $hash) 
+  function getTxByHash(string $hash): Tx 
   {
     return $this->getData($this->txKey($hash));
   }
@@ -44,54 +33,20 @@ class Redis implements \App\Infura\Storage, Subscriber
   private function getData(string $key)
   {
     $data = null;
-    $data = $this->conn()->get($key);
-    if($data)
-      $data = $this->unserialize($data);
-    return $data;
+    $data = $this->conn->get($key);
+    if(!$data)
+      return null;
+    return $this->unserialize($data);
   }
 
-  function addBlock(object $block): void
+  function addBlock(Block $block): void
   {
-    $data = [
-      "hash" => $block->hash,
-      "nonce" => $block->nonce,
-      "number" => $block->number,
-      "size" => $block->size,
-      "count_transactions" => count($block->transactions),
-    ];
-    $conn = $this->conn();
-    $conn->set($this->blockKey($block->hash), $this->serialize($data));
-    $conn->publish($this->blockChanel(), $block->hash);
+    $this->conn->set($this->blockKey($block->hash), $this->serialize($block));
   }
 
-  function addTransactions(array $transactions): void
+  function addTransaction(Tx $tx): void
   {
-    $conn = $this->conn();
-    foreach($transactions as $hash)
-    {
-      $conn->set($this->txKey($hash), $this->serialize(["hash" => $hash]));
-      $conn->publish($this->txChanel(), $hash);
-    }
-  }
-
-  function subscribe(array $chanels): Iterable
-  {
-    $sub_conn = $this->connect();
-    $sub_conn->subscribe($chanels);
-    while($msg = $sub_conn->recv())
-    {
-      list($type, $name, $info) = $msg;
-      switch($type)
-      {
-        case 'unsubscribe':
-          break;
-        case 'message':
-          if($name === $this->blockChanel())
-            yield new BlockMessage($this->getBlockByHash($info));
-          if($name === $this->txChanel())
-            yield new TxMessage($this->getTxByHash($info));
-      }
-    }
+    $this->conn->set($this->txKey($tx->hash), $this->serialize($tx));
   }
 
   private function blockKey(string $hash): string
@@ -104,16 +59,6 @@ class Redis implements \App\Infura\Storage, Subscriber
     return $this->key("tx", $hash);
   }
 
-  function blockChanel(): string
-  {
-    return $this->key("ch_block");
-  }
-
-  function txChanel(): string
-  {
-    return $this->key("ch_tx");
-  }
-
   private function key(...$key): string
   {
     return $this->prefix . ":" . implode(":", $key);
@@ -121,11 +66,11 @@ class Redis implements \App\Infura\Storage, Subscriber
 
   private function serialize($data): string
   {
-    return json_encode($data);
+    return serialize($data);
   }
 
   private function unserialize(string $data)
   {
-    return json_decode($data, true);
+    return unserialize($data);
   }
 }

@@ -2,7 +2,8 @@
 
 \Co\run(function() {
   $storage = \App\Application::storage();
-  $client = new \App\Infura\WsClient(\Conf\Main::INFURA_WS, $storage);
+  $publisher = new \App\Queue\AMQPPublisher(\Conf\Main::AMQP_CONN);
+  $client = new \App\Infura\WsClient(\Conf\Main::INFURA_WS, $storage, $publisher);
   $client->debug = true;
   try {
     $client->start();

@@ -2,18 +2,27 @@
 
 namespace App\Infura;
 
+use App\Storage\Storage;
+use App\Queue\Publisher;
+use App\Queue\NewBlockMessage;
+use App\Queue\NewTxMessage;
+use App\Tx;
+use App\Block;
+
 class WsClient 
 {
   public $debug = false;
   private $url;
   private $counter = 0;
   private $storage;
+  private $publisher;
   private $callbacks = [];
 
-  function __construct($url, Storage $storage)
+  function __construct(string $url, Storage $storage, Publisher $publisher)
   {
     $this->url = $url;
     $this->storage = $storage;
+    $this->publisher = $publisher;
   }
 
   public function getCallId(): int
@@ -79,8 +88,23 @@ class WsClient
         return;
       if($this->debug)
         printf("new block %s, transactions: %d\n", $data->hash, count($data->transactions));
-      $this->storage->addTransactions($data->transactions);
-      $this->storage->addBlock($data);
+      foreach($data->transactions as $hash)
+      {
+        $tx = new Tx();
+        $tx->hash = $hash;
+        $this->storage->addTransaction($tx);
+      }
+      $block = new Block();
+      $block->hash = $data->hash;
+      $block->nonce = $data->nonce;
+      $block->number = $data->number;
+      $block->size = $data->size;
+      $block->count_transactions = count($data->transactions);
+      $this->storage->addBlock($block);
+
+      $this->publisher->publish(new NewBlockMessage($data->hash));
+      foreach($data->transactions as $hash)
+        $this->publisher->publish(new NewTxMessage($hash));
     });
   }
 

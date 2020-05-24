@@ -7,6 +7,7 @@
     "require": {
         "php": "^7.2.5",
         "hoa/websocket": "~3.17",
+        "php-amqplib/php-amqplib": "^2.11",
         "predis/predis": "^1.1",
         "textalk/websocket": "^1.2"
     },
