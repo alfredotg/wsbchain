@@ -27,7 +27,10 @@ class Redis implements Storage
 
   function getTxByHash(string $hash): Tx 
   {
-    return $this->getData($this->txKey($hash));
+    $tx = new Tx();
+    $tx->hash = $hash;
+    return $tx;
+    //return $this->getData($this->txKey($hash));
   }
 
   private function getData(string $key)
@@ -46,7 +49,7 @@ class Redis implements Storage
 
   function addTransaction(Tx $tx): void
   {
-    $this->conn->set($this->txKey($tx->hash), $this->serialize($tx));
+    //$this->conn->set($this->txKey($tx->hash), $this->serialize($tx));
   }
 
   private function blockKey(string $hash): string
