@@ -12,15 +12,17 @@ use \Swoole\Table;
 class PushServer
 {
   const SUBSCRIBE = 3;
-  const MAX_EVENTS = 100;
+  const MAX_EVENTS = 20;
 
-  private $last_events;
+  private $last_blocks;
+  private $last_txs;
 
   function __construct(Storage $storage, Subscriber $subscriber)
   {
     $this->storage = $storage;
     $this->subscriber = $subscriber;
-    $this->last_events = new LimitedTable(self::MAX_EVENTS);
+    $this->last_blocks = new LimitedTable(self::MAX_EVENTS);
+    $this->last_txs = new LimitedTable(self::MAX_EVENTS);
   }
 
   function bind(WsServer $ws)
@@ -50,7 +52,9 @@ class PushServer
 
   function onOpen(WsServer $ws, $request)
   {
-    foreach($this->last_events->getItems() as $event)
+    foreach($this->last_blocks->getItems() as $event)
+      $this->push($ws, $request->fd, $event);
+    foreach($this->last_txs->getItems() as $event)
       $this->push($ws, $request->fd, $event);
   }
 
@@ -70,10 +74,10 @@ class PushServer
     $ws->push($fd, $data);
   }
 
-  private function addEvent(WsServer $ws, $data)
+  private function addEvent(WsServer $ws, $data, LimitedTable $table)
   {
     $data = json_encode($data);
-    $this->last_events->push($data);
+    $table->push($data);
     foreach($ws->connections as $fd) {
       if($ws->isEstablished($fd)) {
         $this->push($ws, $fd, $data);
@@ -90,13 +94,13 @@ class PushServer
       {
         $block = $this->storage->getBlockByHash($msg->getData());
         if($block)
-          $this->addEvent($ws, [$msg->getRoutingKey(), $block]);
+          $this->addEvent($ws, [$msg->getRoutingKey(), $block], $this->last_blocks);
       }
       if($msg instanceof NewTxMessage)
       {
         $tx = $this->storage->getTxByHash($msg->getData());
         if($tx)
-          $this->addEvent($ws, [$msg->getRoutingKey(), $tx]);
+          $this->addEvent($ws, [$msg->getRoutingKey(), $tx], $this->last_txs);
       }
     }
   }
